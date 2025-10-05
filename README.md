@@ -7,6 +7,7 @@ Objetivos:
 A corto Plazo: 
 - Desarrollar y lanzar la primera línea de turrones como "Señor Turrón".
 - Posicionar la marca en mercados locales.
+
 A largo Plazo: 
 - Expandir la distribución a nivel nacional e internacional.
 - Consolidar la marca como una conocida por su calidad y innovación.
