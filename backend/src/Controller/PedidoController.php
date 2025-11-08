@@ -12,6 +12,9 @@ use App\Entity\PedidoDetalle;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\Mailer\Messenger\SendEmailMessage;
 
 final class PedidoController extends AbstractController
 {
@@ -63,7 +66,7 @@ final class PedidoController extends AbstractController
     // Crear nuevo pedido
     // =========================
     #[Route('/api/pedidos', name:'api_pedidos_crear', methods:['POST'])]
-    public function crearPedido(EntityManagerInterface $em, Request $request): JsonResponse
+    public function crearPedido(EntityManagerInterface $em, Request $request, MessageBusInterface $bus): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
 
@@ -91,20 +94,18 @@ final class PedidoController extends AbstractController
             $cantidad = (int)($prodData['cantidad'] ?? 1);
             $precioUnitario = $producto->getPrecio();
 
-            // 🧩 Validar stock disponible
             if ($producto->getStock() < $cantidad) {
                 $erroresStock[] = [
                     'producto' => $producto->getNombre(),
                     'disponible' => $producto->getStock(),
                     'solicitado' => $cantidad
                 ];
-                continue; // No añadir al pedido si no hay stock suficiente
+                continue;
             }
 
             $subtotal = $precioUnitario * $cantidad;
             $total += $subtotal;
 
-            // Crear detalle del pedido
             $detalle = new PedidoDetalle();
             $detalle->setPedido($pedido);
             $detalle->setProducto($producto);
@@ -112,14 +113,12 @@ final class PedidoController extends AbstractController
             $detalle->setPrecioUnitario($precioUnitario);
             $detalle->setSubtotal($subtotal);
 
-            // 🧮 Actualizar stock del producto
             $producto->setStock($producto->getStock() - $cantidad);
 
             $em->persist($detalle);
             $em->persist($producto);
         }
 
-        // Si hubo errores de stock, abortar el pedido
         if (!empty($erroresStock)) {
             return $this->json([
                 'error' => 'Algunos productos no tienen stock suficiente',
@@ -129,12 +128,39 @@ final class PedidoController extends AbstractController
 
         $pedido->setTotal($total);
         $pedido->setDireccionEnvio($data['direccion_envio'] ?? '');
-
         $em->persist($pedido);
         $em->flush();
 
+        // ========================
+        // 🔹 Enviar correo con los detalles del pedido
+        // ========================
+        $contenidoProductos = '';
+        foreach ($pedido->getPedidoDetalles() as $detalle) {
+            $contenidoProductos .= sprintf(
+                "- %s: %d x %.2f€ = %.2f€\n",
+                $detalle->getProducto()->getNombre(),
+                $detalle->getCantidad(),
+                $detalle->getPrecioUnitario(),
+                $detalle->getSubtotal()
+            );
+        }
+
+        $email = (new Email())
+            ->from('tienda@example.com')
+            ->to($usuario->getEmail())
+            ->subject('Tu pedido ha sido recibido')
+            ->text(
+                "Hola {$usuario->getNombre()},\n\n" .
+                "Tu pedido #{$pedido->getId()} se ha completado correctamente.\n\n" .
+                "Detalles del pedido:\n{$contenidoProductos}\n" .
+                "Total: {$pedido->getTotal()}€\n\n" .
+                "Gracias por comprar con nosotros."
+            );
+
+        $bus->dispatch(new SendEmailMessage($email));
+
         return $this->json([
-            'message' => '✅ Pedido creado correctamente',
+            'message' => '✅ Pedido creado correctamente y correo enviado',
             'pedido_id' => $pedido->getId(),
             'total' => $total,
         ]);
