@@ -12,6 +12,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 
 final class UsuarioController extends AbstractController
 {
@@ -254,5 +256,74 @@ final class UsuarioController extends AbstractController
         $em->flush();
 
         return $this->json(['message' => 'Usuario eliminado']);
+    }
+
+    // ============================
+    // Recuperar contraseña
+    // ============================
+    #[Route('/api/users/recover-password', name: 'api_users_recover_password', methods: ['POST'])]
+    public function recoverPassword(Request $request, EntityManagerInterface $em, MailerInterface $mailer): JsonResponse
+    {
+        try {
+            $data = json_decode($request->getContent(), true);
+            $email = $data['email'] ?? null;
+
+            if (!$email) {
+                return $this->json(['error' => 'Falta el email'], 400);
+            }
+
+            $usuario = $em->getRepository(Usuario::class)->findOneBy(['email' => $email]);
+            if (!$usuario) {
+                return $this->json(['error' => 'No existe usuario con ese email'], 404);
+            }
+
+            // Generar token
+            $token = bin2hex(random_bytes(32));
+            $usuario->setResetToken($token);
+            $em->flush();
+
+            // Enviar correo
+            $resetUrl = "http://localhost:5173/reset-password?token=$token"; // Ajusta al dominio de tu frontend
+
+            $emailMessage = (new Email())
+                ->from('no-reply@senorturron.com')
+                ->to($usuario->getEmail())
+                ->subject('Recuperar contraseña')
+                ->text("Haz clic en el siguiente enlace para restablecer tu contraseña: $resetUrl");
+
+            $mailer->send($emailMessage);
+
+            return $this->json(['message' => 'Correo de recuperación enviado']);
+
+        } catch (\Throwable $e) {
+            // 👇 Esto evita el “Unexpected token '<'” devolviendo un JSON aunque haya error
+            return $this->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    #[Route('/api/users/reset-password', name: 'api_reset_password', methods: ['POST'])]
+    public function resetPassword(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $passwordHasher): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $token = $data['token'] ?? null;
+        $newPassword = $data['new_password'] ?? null;
+
+        if (!$token || !$newPassword) {
+            return $this->json(['error' => 'Faltan datos'], 400);
+        }
+
+        $usuario = $em->getRepository(Usuario::class)->findOneBy(['resetToken' => $token]);
+        if (!$usuario) {
+            return $this->json(['error' => 'Token inválido o expirado'], 400);
+        }
+
+        // Cambiar la contraseña
+        $hashedPassword = $passwordHasher->hashPassword($usuario, $newPassword);
+        $usuario->setContrasenaHash($hashedPassword);
+        $usuario->setResetToken(null); // invalidar el token
+
+        $em->flush();
+
+        return $this->json(['message' => 'Contraseña restablecida correctamente']);
     }
 }

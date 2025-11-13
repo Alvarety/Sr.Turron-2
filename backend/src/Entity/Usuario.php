@@ -70,6 +70,15 @@ class Usuario implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Comentario::class, mappedBy: 'usuario')]
     private Collection $comentarios;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $passwordResetToken = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeInterface $passwordResetExpires = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $resetToken = null;
+
     public function __construct()
     {
         $this->fechaRegistro = new \DateTime();
@@ -278,6 +287,39 @@ class Usuario implements UserInterface, PasswordAuthenticatedUserInterface
             }
         }
 
+        return $this;
+    }
+
+    public function getPasswordResetToken(): ?string
+    {
+        return $this->passwordResetToken;
+    }
+
+    public function setPasswordResetToken(?string $token): self
+    {
+        $this->passwordResetToken = $token;
+        return $this;
+    }
+
+    public function getPasswordResetExpires(): ?\DateTimeInterface
+    {
+        return $this->passwordResetExpires;
+    }
+
+    public function setPasswordResetExpires(?\DateTimeInterface $expires): self
+    {
+        $this->passwordResetExpires = $expires;
+        return $this;
+    }
+
+    public function getResetToken(): ?string
+    {
+        return $this->resetToken;
+    }
+
+    public function setResetToken(?string $resetToken): self
+    {
+        $this->resetToken = $resetToken;
         return $this;
     }
 }

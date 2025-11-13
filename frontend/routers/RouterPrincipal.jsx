@@ -15,6 +15,7 @@ import Novedades from "../src/pages/cliente/Novedades";
 import Ofertas from "../src/pages/cliente/Ofertas";
 import Contacto from "../src/pages/cliente/Contacto";
 import RutaProtegidaRol from "../src/components/RutaProtegidaRol";
+import ResetPassword from "../src/pages/ResetPassword";
 
 export default function RouterPrincipal({ usuario, setUsuario, carrito, setCarrito }) {
   return (
@@ -36,6 +37,7 @@ export default function RouterPrincipal({ usuario, setUsuario, carrito, setCarri
           </LayoutMinimal>
         } 
       />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route 
         path="/perfil"
         element={
