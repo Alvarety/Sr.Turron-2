@@ -42,7 +42,7 @@ class ContactoController extends AbstractController
             ->from('candonromeroalvaro2@gmail.com') // DEBE ser tu correo
             ->replyTo($email) // correo del usuario para poder responderle
             ->to('candonromeroalvaro2@gmail.com') // destino
-            ->subject("📩 Nuevo mensaje de contacto: $asunto")
+            ->subject("Mensaje de contacto: $asunto")
             ->text("Nombre: $nombre\nEmail: $email\n\nMensaje:\n$mensaje");
 
         try {
