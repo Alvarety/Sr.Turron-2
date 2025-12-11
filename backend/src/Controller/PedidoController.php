@@ -255,4 +255,25 @@ final class PedidoController extends AbstractController
 
         return $this->json($data);
     }
+
+    #[Route('/api/mis-pedidos', name: 'api_mis_pedidos', methods: ['GET'])]
+    public function misPedidos(EntityManagerInterface $em): JsonResponse
+    {
+        $usuario = $this->getUser(); // Solo funciona si hay seguridad activa
+
+        if (!$usuario) {
+            return $this->json(['error' => 'No autenticado'], 401);
+        }
+
+        $pedidos = $em->getRepository(Pedido::class)->findBy(['usuario' => $usuario]);
+
+        $data = array_map(fn(Pedido $pedido) => [
+            'id' => $pedido->getId(),
+            'fecha' => $pedido->getFechapedido()->format('Y-m-d H:i'),
+            'estado' => $pedido->getEstado(),
+            'total' => $pedido->getTotal(),
+        ], $pedidos);
+
+        return $this->json($data);
+    }
 }

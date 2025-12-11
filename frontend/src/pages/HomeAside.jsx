@@ -20,6 +20,9 @@ export default function HomeAside({ usuario }) {
             <li className="list-group-item">
               <Link to="/contacto">Contacto</Link>
             </li>
+            <li className="list-group-item">
+              <Link to="/mis-pedidos">Mis pedidos</Link>
+            </li>
           </ul>
 
           <div className="accordion" id="infoAccordion">
@@ -93,6 +96,9 @@ export default function HomeAside({ usuario }) {
             <li className="list-group-item">
               <Link to="/empleado/estado">Actualizar Estado de Pedido</Link>
             </li>
+            <li className="list-group-item">
+              <Link to="/mis-pedidos">Mis pedidos</Link>
+            </li>
           </ul>
 
           <div className="accordion" id="infoAccordion">
@@ -159,6 +165,9 @@ export default function HomeAside({ usuario }) {
             </li>
             <li className="list-group-item">
               <Link to="/empleado/estado">Actualizar Estado de Pedido</Link>
+            </li>
+            <li className="list-group-item">
+              <Link to="/mis-pedidos">Mis pedidos</Link>
             </li>
           </ul>
 

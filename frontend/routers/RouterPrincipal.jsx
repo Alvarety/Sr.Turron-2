@@ -19,6 +19,7 @@ import ResetPassword from "../src/pages/ResetPassword";
 import EmpleadoPedidos from "../src/pages/empleado/EmpleadoPedidos";
 import EmpleadoEstado from "../src/pages/empleado/EmpleadoEstado";
 import PedidoPago from "../src/pages/PedidoPago";
+import MisPedidos from "../src/pages/MisPedidos";
 
 export default function RouterPrincipal({ usuario, setUsuario, carrito, setCarrito }) {
   return (
@@ -125,6 +126,12 @@ export default function RouterPrincipal({ usuario, setUsuario, carrito, setCarri
       <Route path="/contacto" element={
         <LayoutPrincipal usuario={usuario}>
           <Contacto />
+        </LayoutPrincipal>
+        } 
+      />
+      <Route path="/mis-pedidos" element={
+        <LayoutPrincipal usuario={usuario}>
+          <MisPedidos/>
         </LayoutPrincipal>
         } 
       />
