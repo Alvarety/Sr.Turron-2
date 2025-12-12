@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { authFetch } from "../pages/admin/utils/api";
 
 export default function Perfil({ usuario, setUsuario }) {
+  const [mensaje, setMensaje] = useState(null);
   const [form, setForm] = useState({
     foto: "",
     nickname: "",
@@ -18,7 +19,6 @@ export default function Perfil({ usuario, setUsuario }) {
 
   const API_URL = "http://127.0.0.1:8000/api/usuarios";
 
-  // ✅ Cargar datos iniciales del usuario
   useEffect(() => {
     if (usuario) {
       setForm((prev) => ({
@@ -36,20 +36,18 @@ export default function Perfil({ usuario, setUsuario }) {
   }, [usuario]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ Validación de cambio de contraseña
     if (form.new_password || form.repeat_password || form.current_password) {
       if (!form.current_password) {
-        return alert("Debes indicar tu contraseña actual.");
+        return setMensaje({ tipo: "warning", texto: "Debes indicar tu contraseña actual." });
       }
       if (form.new_password !== form.repeat_password) {
-        return alert("❌ Las contraseñas no coinciden.");
+        return setMensaje({ tipo: "danger", texto: "❌ Las contraseñas no coinciden." });
       }
     }
 
@@ -65,7 +63,6 @@ export default function Perfil({ usuario, setUsuario }) {
         direccion: form.direccion,
       };
 
-      // 🔹 Enviar "password" en lugar de "new_password"
       if (form.new_password) {
         payload.password = form.new_password;
       }
@@ -75,31 +72,36 @@ export default function Perfil({ usuario, setUsuario }) {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) throw new Error();
 
       const updatedData = await res.json();
       const updatedUser = { ...usuario, ...updatedData };
       setUsuario(updatedUser);
       localStorage.setItem("usuario", JSON.stringify(updatedUser));
 
-      alert("✅ Perfil actualizado correctamente");
+      setMensaje({ tipo: "success", texto: "Perfil actualizado correctamente ✔️" });
 
-      // Limpiar solo campos de contraseña
-      setForm((f) => ({
-        ...f,
+      setForm({
+        ...form,
         current_password: "",
         new_password: "",
         repeat_password: "",
-      }));
+      });
     } catch (err) {
-      console.error("Error actualizando perfil:", err);
-      alert("❌ Error al actualizar tu perfil.");
+      setMensaje({ tipo: "danger", texto: "❌ Error al actualizar tu perfil." });
     }
   };
 
   return (
     <div className="container my-4">
       <h2>Mi Perfil</h2>
+
+      {mensaje && (
+        <div className={`alert alert-${mensaje.tipo}`} role="alert">
+          {mensaje.texto}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="mt-3">
         <input type="text" name="foto" placeholder="Foto (URL)" value={form.foto} onChange={handleChange} className="form-control mb-2" />
         <input type="text" name="nickname" placeholder="Nickname" value={form.nickname} onChange={handleChange} className="form-control mb-2" />
@@ -115,7 +117,6 @@ export default function Perfil({ usuario, setUsuario }) {
         <input type="password" name="current_password" placeholder="Contraseña actual" value={form.current_password} onChange={handleChange} className="form-control mb-2" />
         <input type="password" name="new_password" placeholder="Nueva contraseña" value={form.new_password} onChange={handleChange} className="form-control mb-2" />
         <input type="password" name="repeat_password" placeholder="Repetir nueva contraseña" value={form.repeat_password} onChange={handleChange} className="form-control mb-2" />
-
         <button type="submit" className="btn btn-primary mt-2">Guardar cambios</button>
       </form>
     </div>

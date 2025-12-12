@@ -78,6 +78,7 @@ export default function ProductosAdmin() {
     let categoriaId = 1;
     if (producto.categoria === "Turrones de Chocolate") categoriaId = 2;
     else if (producto.categoria === "Turrones Gourmet") categoriaId = 3;
+    else if (producto.categoria === "Turrones Sin Azucar") categoriaId = 4;
 
     setForm({
       nombre: producto.nombre,
@@ -158,6 +159,7 @@ export default function ProductosAdmin() {
           <option value={1}>Turrones Clásicos</option>
           <option value={2}>Turrones de Chocolate</option>
           <option value={3}>Turrones Gourmet</option>
+          <option value={4}>Turrones Sin Azucar</option>
         </select>
 
         <input

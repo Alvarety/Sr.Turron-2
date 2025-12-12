@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { authFetch } from "../admin/utils/api"; // 🔹 import correcto
+import { authFetch } from "../admin/utils/api";
 
 export default function Contacto({ usuario }) {
   if (!usuario) usuario = JSON.parse(localStorage.getItem("usuario"));
@@ -9,6 +9,7 @@ export default function Contacto({ usuario }) {
   const [email] = useState(usuario ? usuario.email : "");
   const [asunto, setAsunto] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [alerta, setAlerta] = useState(null);
 
   if (!usuario) {
     return (
@@ -28,21 +29,29 @@ export default function Contacto({ usuario }) {
         body: JSON.stringify({ nombre, email, asunto, mensaje }),
       });
 
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) throw new Error();
 
-      alert("✅ Mensaje enviado correctamente.");
+      setAlerta({ tipo: "success", texto: "Mensaje enviado correctamente ✔️" });
       setAsunto("");
       setMensaje("");
 
     } catch (error) {
-      console.error(error);
-      alert("❌ No se pudo enviar el mensaje. Revisa tu sesión o conexión.");
+      setAlerta({
+        tipo: "danger",
+        texto: "❌ No se pudo enviar el mensaje. Revisa tu sesión o conexión.",
+      });
     }
   };
 
   return (
     <div className="container my-5">
       <h2 className="text-center mb-4">Formulario de Contacto</h2>
+
+      {alerta && (
+        <div className={`alert alert-${alerta.tipo}`} role="alert">
+          {alerta.texto}
+        </div>
+      )}
 
       <form className="card shadow p-4" onSubmit={enviarFormulario}>
         <div className="mb-3">

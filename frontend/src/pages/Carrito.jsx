@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authFetch } from "../pages/admin/utils/api";
 
 export default function Carrito({ carrito, setCarrito, usuario }) {
   const navigate = useNavigate();
+
+  const [mensaje, setMensaje] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
   const total = carrito.reduce(
     (acc, p) => acc + Number(p.precio) * Number(p.cantidad),
     0
@@ -24,21 +28,25 @@ export default function Carrito({ carrito, setCarrito, usuario }) {
     }
   };
 
-  const vaciarCarrito = () => {
-    if (window.confirm("¿Seguro que deseas vaciar el carrito?")) {
-      setCarrito([]);
-      localStorage.removeItem("carrito");
-    }
+  const confirmarVaciar = () => {
+    setCarrito([]);
+    localStorage.removeItem("carrito");
+
+    setMensaje({ tipo: "warning", texto: "🗑️ Carrito vaciado correctamente." });
+    setShowModal(false);
   };
 
   const hacerPedido = async () => {
     if (!usuario) {
-      alert("⚠️ Debes iniciar sesión para hacer un pedido.");
+      setMensaje({
+        tipo: "danger",
+        texto: "⚠️ Debes iniciar sesión para hacer un pedido.",
+      });
       return;
     }
 
     if (carrito.length === 0) {
-      alert("Tu carrito está vacío.");
+      setMensaje({ tipo: "warning", texto: "Tu carrito está vacío." });
       return;
     }
 
@@ -49,7 +57,7 @@ export default function Carrito({ carrito, setCarrito, usuario }) {
           id: p.id,
           cantidad: p.cantidad,
         })),
-        metodo_pago: "contra_reembolso", // predeterminado, puedes permitir elegir
+        metodo_pago: "contra_reembolso",
       };
 
       const res = await authFetch("http://127.0.0.1:8000/api/pedidos", {
@@ -57,26 +65,32 @@ export default function Carrito({ carrito, setCarrito, usuario }) {
         body: JSON.stringify(pedido),
       });
 
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) throw new Error();
 
       const data = await res.json();
-      alert("✅ Pedido realizado con éxito");
 
-      // Limpiar carrito
+      setMensaje({ tipo: "success", texto: "Pedido realizado con éxito 🎉" });
+
       setCarrito([]);
       localStorage.removeItem("carrito");
 
-      // Redirigir al flujo de pago
       navigate(`/pedido-pago/${data.pedido_id}`);
     } catch (error) {
-      console.error("Error creando el pedido:", error);
-      alert("❌ Ocurrió un error al procesar tu pedido.");
+      setMensaje({
+        tipo: "danger",
+        texto: "❌ Ocurrió un error al procesar tu pedido.",
+      });
     }
   };
 
   return (
     <div className="carrito-container">
       <h1 className="carrito-titulo">🛍️ Tu carrito</h1>
+      {mensaje && (
+        <div className={`alert alert-${mensaje.tipo}`} role="alert">
+          {mensaje.texto}
+        </div>
+      )}
 
       {carrito.length === 0 ? (
         <p className="text-center text-muted">
@@ -98,15 +112,11 @@ export default function Carrito({ carrito, setCarrito, usuario }) {
               <tbody>
                 {carrito.map((p) => (
                   <tr key={p.id}>
-                    <td data-label="Producto">{p.nombre}</td>
-                    <td data-label="Precio Unitario">
-                      {Number(p.precio).toFixed(2)} €
-                    </td>
-                    <td data-label="Cantidad">{p.cantidad}</td>
-                    <td data-label="Subtotal">
-                      {(Number(p.precio) * p.cantidad).toFixed(2)} €
-                    </td>
-                    <td data-label="">
+                    <td>{p.nombre}</td>
+                    <td>{Number(p.precio).toFixed(2)} €</td>
+                    <td>{p.cantidad}</td>
+                    <td>{(Number(p.precio) * p.cantidad).toFixed(2)} €</td>
+                    <td>
                       <button
                         className="btn-eliminar"
                         onClick={() => eliminarProducto(p.id)}
@@ -123,7 +133,7 @@ export default function Carrito({ carrito, setCarrito, usuario }) {
           <p className="carrito-total">Total: {total.toFixed(2)} €</p>
 
           <div className="carrito-botones">
-            <button className="btn-vaciar" onClick={vaciarCarrito}>
+            <button className="btn-vaciar" onClick={() => setShowModal(true)}>
               Vaciar carrito
             </button>
             <button className="btn-pedido" onClick={hacerPedido}>
@@ -131,6 +141,45 @@ export default function Carrito({ carrito, setCarrito, usuario }) {
             </button>
           </div>
         </>
+      )}
+
+      {showModal && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+
+              <div className="modal-header">
+                <h5 className="modal-title">Vaciar carrito</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowModal(false)}
+                ></button>
+              </div>
+
+              <div className="modal-body">
+                <p>¿Seguro que deseas vaciar el carrito?</p>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button className="btn btn-danger" onClick={confirmarVaciar}>
+                  Vaciar
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

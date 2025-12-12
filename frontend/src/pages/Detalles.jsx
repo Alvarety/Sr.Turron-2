@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { authFetch } from "../pages/admin/utils/api"; // solo para acciones que requieren login
+import { authFetch } from "../pages/admin/utils/api";
 
 export default function Detalles({ usuario, carrito, setCarrito }) {
   const { id } = useParams();
@@ -15,23 +15,21 @@ export default function Detalles({ usuario, carrito, setCarrito }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 🔹 Cargar producto y reseñas (público)
+  const [mensaje, setMensaje] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [cantidad, setCantidad] = useState(1);
+
   const fetchProductoYResenas = async () => {
     try {
-      // Producto
       const prodRes = await fetch(`http://127.0.0.1:8000/api/productos/${id}`);
       if (!prodRes.ok) throw new Error("Error cargando producto");
-      const prodData = await prodRes.json();
-      setProducto(prodData);
+      setProducto(await prodRes.json());
 
-      // Reseñas
       const resRes = await fetch(`http://127.0.0.1:8000/api/productos/${id}/resenas`);
       if (!resRes.ok) throw new Error("Error cargando reseñas");
-      const resData = await resRes.json();
-      setResenas(resData);
+      setResenas(await resRes.json());
 
     } catch (err) {
-      console.error(err);
       setError("No se pudo cargar el producto o las reseñas");
     } finally {
       setLoading(false);
@@ -42,79 +40,90 @@ export default function Detalles({ usuario, carrito, setCarrito }) {
     fetchProductoYResenas();
   }, [id]);
 
-  // 🔹 Agregar al carrito (requiere usuario)
-  const agregarAlCarrito = () => {
+  const abrirModal = () => {
     if (!usuario) return navigate("/login");
     if (!producto) return;
-
-    const cantidad = parseInt(
-      prompt(`¿Cuántas unidades de "${producto.nombre}" deseas añadir al carrito?`, "1"),
-      10
-    );
-    if (isNaN(cantidad) || cantidad <= 0) {
-      return alert("Introduce una cantidad válida.");
-    }
-
-    const existente = carrito.find(p => p.id === producto.id);
-    if (existente) {
-      setCarrito(carrito.map(p => p.id === producto.id ? { ...p, cantidad: p.cantidad + cantidad } : p));
-    } else {
-      setCarrito([...carrito, { ...producto, cantidad }]);
-    }
-
-    alert(`🛍️ Se han añadido ${cantidad} ${producto.nombre}${cantidad > 1 ? "s" : ""} al carrito.`);
+    setCantidad(1);
+    setShowModal(true);
   };
 
-  // 🔹 Enviar reseña (requiere usuario)
+  const confirmarAgregar = () => {
+    const unidad = parseInt(cantidad, 10);
+
+    if (isNaN(unidad) || unidad <= 0) {
+      setMensaje({ tipo: "danger", texto: "Introduce una cantidad válida." });
+      return;
+    }
+
+    const existente = carrito.find((p) => p.id === producto.id);
+
+    if (existente) {
+      setCarrito(
+        carrito.map((p) =>
+          p.id === producto.id ? { ...p, cantidad: p.cantidad + unidad } : p
+        )
+      );
+    } else {
+      setCarrito([...carrito, { ...producto, cantidad: unidad }]);
+    }
+
+    setMensaje({
+      tipo: "success",
+      texto: `🛍️ Se han añadido ${unidad} ${producto.nombre}${unidad > 1 ? "s" : ""} al carrito.`,
+    });
+
+    setShowModal(false);
+  };
+
   const enviarResena = async () => {
     if (!usuario) return navigate("/login");
 
     try {
-      const res = await authFetch(`http://127.0.0.1:8000/api/resenas`, {
+      const res = await authFetch("http://127.0.0.1:8000/api/resenas", {
         method: "POST",
         body: JSON.stringify({
           usuario_id: usuario.id,
           producto_id: producto.id,
           comentario,
-          puntuacion
-        })
+          puntuacion,
+        }),
       });
 
-      if (!res.ok) throw new Error("Error al enviar reseña");
+      if (!res.ok) throw new Error();
 
-      alert("✅ Reseña enviada correctamente");
+      setMensaje({ tipo: "success", texto: "Reseña enviada correctamente." });
       setComentario("");
       setPuntuacion(5);
       fetchProductoYResenas();
-    } catch (err) {
-      console.error(err);
-      alert("❌ No se pudo enviar la reseña");
+    } catch {
+      setMensaje({ tipo: "danger", texto: "No se pudo enviar la reseña." });
     }
   };
 
-  // 🔹 Enviar comentario a una reseña (requiere usuario)
   const enviarComentario = async (resenaId) => {
     if (!usuario) return navigate("/login");
 
     const texto = respuestaTexto[resenaId];
-    if (!texto || texto.trim() === "") return;
+    if (!texto?.trim()) return;
 
     try {
-      const res = await authFetch(`http://127.0.0.1:8000/api/resenas/${resenaId}/comentarios`, {
-        method: "POST",
-        body: JSON.stringify({
-          usuario_id: usuario.id,
-          texto
-        })
-      });
+      const res = await authFetch(
+        `http://127.0.0.1:8000/api/resenas/${resenaId}/comentarios`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            usuario_id: usuario.id,
+            texto,
+          }),
+        }
+      );
 
-      if (!res.ok) throw new Error("Error al enviar comentario");
+      if (!res.ok) throw new Error();
 
       setRespuestaTexto({ ...respuestaTexto, [resenaId]: "" });
       fetchProductoYResenas();
-    } catch (err) {
-      console.error(err);
-      alert("❌ No se pudo enviar el comentario");
+    } catch {
+      setMensaje({ tipo: "danger", texto: "No se pudo enviar el comentario." });
     }
   };
 
@@ -123,27 +132,86 @@ export default function Detalles({ usuario, carrito, setCarrito }) {
 
   return (
     <div className="detalles-container container mt-5">
+
+      {/* 🔹 ALERTA BOOTSTRAP */}
+      {mensaje && (
+        <div className={`alert alert-${mensaje.tipo}`} role="alert">
+          {mensaje.texto}
+        </div>
+      )}
+
       <div className="card shadow-lg p-4">
         <div className="row g-4 align-items-center">
           <div className="col-md-5 text-center">
-            <img src={producto.imagenUrl} alt={producto.nombre} className="img-fluid rounded" style={{ maxHeight: "400px", objectFit: "cover" }} />
+            <img
+              src={producto.imagenUrl}
+              alt={producto.nombre}
+              className="img-fluid rounded"
+              style={{ maxHeight: "400px", objectFit: "cover" }}
+            />
           </div>
           <div className="col-md-7">
             <h2 className="mb-3">{producto.nombre}</h2>
             <p className="text-muted">{producto.descripcion}</p>
             <p><strong>Categoría:</strong> {producto.categoria}</p>
             <h4 className="text-success mb-4">{producto.precio} €</h4>
-            <button onClick={agregarAlCarrito} className="btn btn-primary me-3">
+
+            <button onClick={abrirModal} className="btn btn-primary me-3">
               Agregar al carrito 🛍️
             </button>
-            <Link to="/productos" className="btn btn-secondary">Volver al catálogo</Link>
+
+            <Link to="/productos" className="btn btn-secondary">
+              Volver al catálogo
+            </Link>
           </div>
         </div>
       </div>
 
+      {showModal && (
+        <div className="modal fade show d-block" tabIndex="-1"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+
+              <div className="modal-header">
+                <h5 className="modal-title">Añadir al carrito</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowModal(false)}
+                ></button>
+              </div>
+
+              <div className="modal-body">
+                <p>¿Cuántas unidades deseas agregar?</p>
+
+                <input
+                  type="number"
+                  min="1"
+                  className="form-control"
+                  value={cantidad}
+                  onChange={(e) => setCantidad(e.target.value)}
+                />
+              </div>
+
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                  Cancelar
+                </button>
+                <button className="btn btn-primary" onClick={confirmarAgregar}>
+                  Añadir
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container mt-4">
         <h3>Reseñas</h3>
         <hr />
+
         {resenas.length === 0 && <p>No hay reseñas todavía.</p>}
 
         {resenas.map((r) => (
@@ -155,7 +223,11 @@ export default function Detalles({ usuario, carrito, setCarrito }) {
             {r.respuestas.length > 0 && (
               <div className="mt-3 ps-3 border-start">
                 {r.respuestas.map((c, index) => (
-                  <p key={index}><strong>{c.usuario}</strong>: {c.texto}<br /><small className="text-muted">{c.fecha}</small></p>
+                  <p key={index}>
+                    <strong>{c.usuario}</strong>: {c.texto}
+                    <br />
+                    <small className="text-muted">{c.fecha}</small>
+                  </p>
                 ))}
               </div>
             )}
@@ -166,9 +238,16 @@ export default function Detalles({ usuario, carrito, setCarrito }) {
                   className="form-control mb-2"
                   placeholder="Escribe una respuesta..."
                   value={respuestaTexto[r.id] || ""}
-                  onChange={(e) => setRespuestaTexto({ ...respuestaTexto, [r.id]: e.target.value })}
+                  onChange={(e) =>
+                    setRespuestaTexto({ ...respuestaTexto, [r.id]: e.target.value })
+                  }
                 />
-                <button className="btn btn-sm btn-outline-primary" onClick={() => enviarComentario(r.id)}>Responder 💬</button>
+                <button
+                  className="btn btn-sm btn-outline-primary"
+                  onClick={() => enviarComentario(r.id)}
+                >
+                  Responder 💬
+                </button>
               </div>
             )}
           </div>
@@ -177,16 +256,27 @@ export default function Detalles({ usuario, carrito, setCarrito }) {
         {usuario && (
           <>
             <h4 className="mt-4">Escribe tu reseña</h4>
-            <select value={puntuacion} onChange={(e) => setPuntuacion(parseInt(e.target.value))} className="form-select w-auto mb-2">
-              {[1,2,3,4,5].map(n => <option key={n} value={n}>{n} ⭐</option>)}
+
+            <select
+              value={puntuacion}
+              onChange={(e) => setPuntuacion(parseInt(e.target.value))}
+              className="form-select w-auto mb-2"
+            >
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>{n} ⭐</option>
+              ))}
             </select>
+
             <textarea
               className="form-control mb-2"
               value={comentario}
               onChange={(e) => setComentario(e.target.value)}
               placeholder="Escribe tu opinión..."
             />
-            <button className="btn btn-primary" onClick={enviarResena}>Publicar reseña</button>
+
+            <button className="btn btn-primary" onClick={enviarResena}>
+              Publicar reseña
+            </button>
           </>
         )}
       </div>
