@@ -29,7 +29,6 @@ final class PedidoController extends AbstractController
         $usuarioRepo = $em->getRepository(Usuario::class);
         $pedidoRepo = $em->getRepository(Pedido::class);
 
-        // Si no viene usuario_id, devolver error
         if (!$usuarioId) {
             return $this->json(['error' => 'usuario_id no enviado'], 400);
         }
@@ -39,11 +38,9 @@ final class PedidoController extends AbstractController
             return $this->json(['error' => 'Usuario no encontrado'], 404);
         }
 
-        // 🔹 Si es admin, ver todos los pedidos
-        if ($usuario->getRol() === 'admin') {
+        if (in_array($usuario->getRol(), ['admin', 'empleado'])) {
             $pedidos = $pedidoRepo->findAll();
         } else {
-            // 🔹 Si es cliente, solo sus pedidos
             $pedidos = $pedidoRepo->findBy(['usuario' => $usuario]);
         }
 
@@ -131,17 +128,6 @@ final class PedidoController extends AbstractController
         $pedido->setDireccionEnvio($data['direccion_envio'] ?? '');
         $em->persist($pedido);
         $em->flush();
-
-        // 🔹 Crear Pago asociado al pedido
-        // $pago = new Pago();
-        // $pago->setPedido($pedido)
-        //     ->setMonto($total)
-        //     ->setMetodoPago($data['metodo_pago'] ?? 'contra_reembolso')
-        //     ->setFechaPago(new \DateTime())
-        //     ->setEstadoPago('completado'); // simulado
-
-        // $em->persist($pago);
-        // $em->flush();
 
         // ========================
         // 🔹 Enviar correo con los detalles del pedido
@@ -259,7 +245,7 @@ final class PedidoController extends AbstractController
     #[Route('/api/mis-pedidos', name: 'api_mis_pedidos', methods: ['GET'])]
     public function misPedidos(EntityManagerInterface $em): JsonResponse
     {
-        $usuario = $this->getUser(); // Solo funciona si hay seguridad activa
+        $usuario = $this->getUser();
 
         if (!$usuario) {
             return $this->json(['error' => 'No autenticado'], 401);
